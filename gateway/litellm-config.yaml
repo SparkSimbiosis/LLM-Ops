@@ -1,0 +1,61 @@
+# LiteLLM = провайдер-адаптер. Тут лише список моделей і ключі.
+# Routing, fallback, cost студент реалізує в .NET-сервісі, НЕ тут.
+
+model_list:
+  - model_name: mock
+    litellm_params:
+      model: openai/mock
+      api_base: http://mock-provider:9000/v1
+      api_key: "sk-mock"
+
+  # дві "моделі" на mock — щоб routing (W2) мав із чого обирати без реального ключа
+  - model_name: mock-mini
+    litellm_params:
+      model: openai/mock
+      api_base: http://mock-provider:9000/v1
+      api_key: "sk-mock"
+  - model_name: mock-strong
+    litellm_params:
+      model: openai/mock
+      api_base: http://mock-provider:9000/v1
+      api_key: "sk-mock"
+
+  # УВАГА (урок 3): нижче — alias'и, а не снапшоти. Провайдер оновлює модель за
+  # такою назвою без вашої участі — це «регресія без коміта» з уроку 2, тільки
+  # причина поза вашою організацією. У проді пінять конкретний снапшот, напр.
+  #     model: openai/gpt-5-mini-<дата-снапшота>
+  # і перехід на новий снапшот їде окремим PR через eval-гейт (урок 11).
+  # Тут alias свідомо: реальний ключ опційний, і механіку ми перевіряємо на mock.
+  - model_name: gpt-5-mini
+    litellm_params:
+      model: openai/gpt-5-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-5
+    litellm_params:
+      model: openai/gpt-5
+      api_key: os.environ/OPENAI_API_KEY
+
+  # Anthropic — друга родина реальних моделей, ключ окремий: ANTHROPIC_API_KEY.
+  # Імена тут теж alias'и, а не снапшоти — усе, що написано вище про gpt-5-mini,
+  # стосується і їх.
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: azure-gpt-5
+    litellm_params:
+      model: azure/<azure-deployment-name>   # в Azure після azure/ іде назва deployment, не моделі з каталогу
+      api_base: os.environ/AZURE_API_BASE
+      api_key: os.environ/AZURE_API_KEY
+      api_version: os.environ/AZURE_API_VERSION
+
+litellm_settings:
+  drop_params: true
+  num_retries: 0   # збої віддаємо в сервіс (reliability — робота студента), не ретраїмо приховано

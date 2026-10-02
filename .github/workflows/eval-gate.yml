@@ -1,0 +1,57 @@
+name: eval-gate
+# Шаблон для студентського репозиторію (корінь = вміст starter/).
+# Піднімає стек, ганяє evals проти сервісу, блокує regression на pull request.
+on:
+  pull_request:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Up stack (без UI — для evals не потрібен)
+        run: docker compose up -d --build service
+
+      - name: Wait for service
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:8080/health; then exit 0; fi
+            sleep 5
+          done
+          echo "service did not become healthy"
+          docker compose logs
+          exit 1
+
+      - name: Wait for gateway (холодний LiteLLM дає 500 на перший запит)
+        run: |
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:4000/v1/chat/completions \
+              -H "Content-Type: application/json" \
+              -d '{"model":"mock","messages":[{"role":"user","content":"hi"}]}' || true)
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 5
+          done
+          echo "gateway not ready"
+          docker compose logs gateway
+          exit 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # поріг 5/6 — свідомий запас на один флейк: «зламаний промпт» валить одразу
+      # 3 кейси і завжди пробиває. Кейс, що МУСИТЬ ловитися поодинці (safety),
+      # дублюй варіаціями — див. hw5.
+      - name: Evals
+        env:
+          SERVICE_URL: http://localhost:8080
+        run: python evals/run.py --dataset evals/golden.jsonl --threshold 5
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Down
+        if: always()
+        run: docker compose down -v

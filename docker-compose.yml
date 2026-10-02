@@ -1,0 +1,53 @@
+services:
+  ui:
+    build: ./ui
+    ports: ["4200:4200"]
+    depends_on: [service]
+
+  service:
+    build: ./service
+    ports: ["8080:8080"]
+    environment:
+      - GATEWAY_URL=http://gateway:4000
+      - DB_CONN=Host=postgres;Database=llmops;Username=llmops;Password=llmops
+      - MODEL=${MODEL:-mock}   # mock (за замовч.) або gpt-5-mini / claude-haiku (потрібен ключ у gateway/.env)
+    depends_on: [gateway, postgres]
+
+  gateway:
+    # nightly-тег рухомий — пінимо перевірений digest, щоб у всіх студентів був той самий gateway
+    image: ghcr.io/berriai/litellm:main-latest@sha256:80ea654c506da9083503d00c1b323b2fecddf17af6add9bf01b2603938e17bd2
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    ports: ["4000:4000"]
+    volumes:
+      - ./gateway/litellm-config.yaml:/app/config.yaml:ro
+    # ключі провайдерів — лише тут, і лише з файлу (для mock він не потрібен,
+    # тому required: false). НЕ дублюй їх у environment: той має вищий
+    # пріоритет і перебив би env_file порожнім значенням.
+    env_file:
+      - path: gateway/.env
+        required: false
+    depends_on: [mock-provider]
+
+  mock-provider:
+    build: ./mock-provider
+    expose: ["9000"]
+
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=llmops
+      - POSTGRES_PASSWORD=llmops
+      - POSTGRES_DB=llmops
+    ports: ["5432:5432"]
+    volumes:
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - pgdata:/var/lib/postgresql/data
+
+  # --- optional (advanced): docker compose --profile advanced up ---
+  redis:
+    image: redis:7
+    profiles: ["advanced"]
+    ports: ["6379:6379"]
+
+volumes:
+  pgdata:

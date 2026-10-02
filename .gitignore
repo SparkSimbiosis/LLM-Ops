@@ -1,0 +1,33 @@
+# env / secrets
+.env
+*.env
+!*.env.example
+
+# локальний зсув портів — не комітиться: CI очікує стандартні порти
+docker-compose.override.yml
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# .net
+bin/
+obj/
+
+# node / angular
+node_modules/
+dist/
+.angular/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+# .vscode/* , а не .vscode/ — git не заходить усередину ігнорованої теки,
+# і виняток нижче просто не розглядався б
+.vscode/*
+# спільні налаштування проєкту лишаємо: вони стосуються всіх, хто відкриє
+# стартер, а не чиїхось особистих звичок
+!.vscode/settings.json

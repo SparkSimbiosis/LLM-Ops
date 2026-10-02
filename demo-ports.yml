@@ -1,0 +1,13 @@
+# Зсунуті хостові порти — щоб стек піднімався паралельно з іншим
+# або на машині, де стандартні порти зайняті.
+# Запуск: docker compose -f docker-compose.yml -f demo-ports.yml up --build -d
+# ports при мержі Compose-файлів ДОДАЮТЬСЯ, тому !override.
+#
+# ПОТРІБЕН COMPOSE 2.24+: тег !override з'явився саме там. На старішій
+# версії він мовчки ігнорується, порти ДОДАЮТЬСЯ, і старий залишиться
+# зайнятим. Перевірка: docker compose config | docker port <контейнер>.
+services:
+  ui:      { ports: !override ["4300:4200"] }
+  service: { ports: !override ["8180:8080"] }
+  gateway: { ports: !override ["4100:4000"] }
+  postgres: { ports: !override ["25432:5432"] }   # 25432, а не 15432: override.example займає 15432 — інакше два стеки поруч конфліктують саме на postgres
